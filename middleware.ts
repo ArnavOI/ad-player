@@ -4,10 +4,12 @@ import { cdnOrigin } from "@/lib/ads";
 // Content-Security-Policy with a fresh nonce per request: only this site's own scripts run, and media comes only from the
 // CDN. Ads are made to be embedded anywhere, so any site may frame /ad pages; set FRAME_ANCESTORS (e.g.
 // "https://shop.example.com https://www.example.com") to allow only those. Other pages can't be framed.
+// Without that setting the directive is left out, as "*" would still block apps and pages that aren't http(s) (file://,
+// in-app web views).
 // Only well-formed sites are used. A setting with nothing usable in it blocks embedding instead of allowing everyone.
-function frameAncestors(): string {
+function frameAncestors(): string | null {
   const set = process.env.FRAME_ANCESTORS?.trim();
-  if (!set) return "*";
+  if (!set) return null;
   return set.split(/[\s,]+/).filter((x) => /^(https?:\/\/(\*\.)?[a-z0-9.-]+(:\d+)?\/?|'self')$/i.test(x)).join(" ") || "'none'";
 }
 
@@ -17,6 +19,7 @@ export function middleware(req: NextRequest) {
   const embeddable = req.nextUrl.pathname.startsWith("/ad/");
   let cdn = "";
   try { cdn = cdnOrigin(); } catch { /* not set up: the page shows its error */ }
+  const ancestors = embeddable ? frameAncestors() : "'none'";
   const csp = [
     "default-src 'none'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
@@ -25,7 +28,7 @@ export function middleware(req: NextRequest) {
     `media-src ${cdn || "'none'"}`,
     `connect-src 'self'${dev ? " ws:" : ""}`,
     "font-src 'self'", "manifest-src 'self'", "base-uri 'none'", "form-action 'none'", "object-src 'none'",
-    `frame-ancestors ${embeddable ? frameAncestors() : "'none'"}`,
+    ...(ancestors ? [`frame-ancestors ${ancestors}`] : []),
   ].join("; ");
   const headers = new Headers(req.headers);
   headers.set("Content-Security-Policy", csp); // Next.js reads the nonce from here
