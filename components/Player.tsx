@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Ad } from "@/lib/ads";
 
 export const GAP = 12;
+const SWATCH = 58;
 const WAIT = 20000; // longest wait for all videos to buffer before starting (ms)
 const SLOW = 6000; // after this, say that it's slow
 const STALL = 500; // a video without data for this long holds all of them, so they stay in step
@@ -14,8 +15,7 @@ const GIVE_UP = 15000; // a video stalled this long is left out, so the others c
 export function layout(W: number, H: number, ad: Ad) {
   const fit = (w: number, h: number) => Math.max(0, Math.min(1, w / ad.width, h / ad.height));
   if (ad.items.length < 2) return { below: false, side: 0, strip: 0, scale: fit(W, H) };
-  const side = Math.round(Math.min(132, Math.max(60, W * 0.2)));
-  const strip = Math.round(Math.min(104, Math.max(56, H * 0.22)));
+  const side = SWATCH, strip = SWATCH; // the column / row of colors
   const beside = fit(W - side - GAP, H), under = fit(W, H - strip - GAP);
   return { below: under > beside, side, strip, scale: Math.max(beside, under) };
 }
@@ -39,64 +39,6 @@ export const tryPlay = (v: HTMLVideoElement): Promise<"ok" | "blocked" | "failed
     Promise.resolve(v.play()).then(() => done("ok"), (e) => done(v.error ? "failed" : e?.name === "NotAllowedError" ? "blocked" : "failed"));
   } catch { done("failed"); }
 });
-
-/** A product's photo, or a still from the middle of its video; its name when there's neither. The still is drawn from a
- * small preloaded video, or from the player's own video once that plays (iPhones may not preload the small one). It's a
- * picture, not a video, because every video element kept costs a decoder the player needs. */
-export function Thumb({ photo, src, middle, label, round, main }: {
-  photo: string | null; src: string | null; middle: number; label: string; round: number; main: () => HTMLVideoElement | null;
-}) {
-  const [noPhoto, setNoPhoto] = useState(!photo);
-  const [drawn, setDrawn] = useState(false);
-  const [noPreload, setNoPreload] = useState(false);
-  const img = useRef<HTMLImageElement>(null), small = useRef<HTMLVideoElement>(null), canvas = useRef<HTMLCanvasElement>(null);
-  useEffect(() => { setNoPhoto(!photo); setDrawn(false); setNoPreload(false); }, [photo, round]);
-
-  const draw = (v: HTMLVideoElement | null) => {
-    const c = canvas.current;
-    if (!v || !c || v.readyState < 2 || v.seeking || !v.videoWidth) return false;
-    const side = Math.min(v.videoWidth, v.videoHeight);
-    c.getContext("2d")!.drawImage(v, (v.videoWidth - side) / 2, (v.videoHeight - side) / 2, side, side, 0, 0, c.width, c.height);
-    setDrawn(true);
-    return true;
-  };
-  const drawSmall = () => safely(() => { if (!drawn) draw(small.current); });
-  // Anything may have loaded or failed before this page's script ran, when nothing was listening yet.
-  useEffect(() => {
-    if (img.current?.complete && !img.current.naturalWidth) setNoPhoto(true);
-    if (small.current?.error) setNoPreload(true);
-    drawSmall();
-  });
-  // Free the small video's decoder. Some browsers report that as an error, so nothing listens by then.
-  useEffect(() => {
-    const v = small.current;
-    return () => safely(() => { if (v && !v.isConnected) { v.removeAttribute("src"); v.load(); } });
-  }, [noPhoto, drawn, round]);
-  // From the player's video: any frame first, then the one in the middle, after which this stops.
-  useEffect(() => {
-    if (!noPhoto || !src) return;
-    let some = false;
-    const t = setInterval(() => safely(() => {
-      const v = main();
-      if (!v || v.error || v.currentTime < 0.05) return;
-      const mid = Math.abs(v.currentTime - middle) < 0.4;
-      if ((mid || !some) && (mid || !canvas.current || canvas.current.hidden) && draw(v)) some = true;
-      if (mid && some) clearInterval(t);
-    }), 200);
-    return () => clearInterval(t);
-  }, [noPhoto, round]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // eslint-disable-next-line @next/next/no-img-element
-  if (photo && !noPhoto) return <img ref={img} src={photo} alt="" decoding="async" onError={() => setNoPhoto(true)} />;
-  return (
-    <>
-      <canvas ref={canvas} width={264} height={264} hidden={!drawn} aria-hidden="true" />
-      {!drawn && src && !noPreload && <video ref={small} key={round} src={`${src}#t=${middle.toFixed(2)}`} muted playsInline preload="metadata" tabIndex={-1}
-        aria-hidden="true" onLoadedData={drawSmall} onSeeked={drawSmall} onError={() => setNoPreload(true)} />}
-      {!drawn && (noPreload || !src) && <span className="noPhoto">{label}</span>}
-    </>
-  );
-}
 
 // All videos are stacked in one frame, all painted, and play in lockstep; the selected one is on top (and audible), so
 // switching product continues from the exact same moment. Autoplay waits until EVERY video can play through, then all
@@ -315,7 +257,6 @@ export default function Player({ ad, sound: startWithSound }: { ad: Ad; sound: b
 
   const { below, side, strip, scale } = layout(box.w, box.h, ad);
   const w = Math.round(ad.width * scale), h = Math.round(ad.height * scale);
-  const middle = ad.frames / ad.fps / 2;
   const none = failed.length >= ad.items.length;
   const loading = !none && (!ready || buffering);
   const message = none ? (offline ? "You're offline. Check your internet connection." : "This video couldn't be loaded. Please try again.")
@@ -358,7 +299,7 @@ export default function Player({ ad, sound: startWithSound }: { ad: Ad; sound: b
             <button key={it.video} type="button" aria-pressed={i === active} disabled={failed.includes(i)}
               aria-label={failed.includes(i) ? `${it.label} (couldn't be loaded)` : it.label}
               className={`product ${i === active ? "on" : ""}`} onClick={() => select(i)}>
-              <Thumb photo={it.photo} src={it.video} middle={middle} label={it.label} round={round} main={() => videos.current[i]} />
+              <span className="swatch" style={{ backgroundColor: it.color }} />
             </button>
           ))}
         </div>

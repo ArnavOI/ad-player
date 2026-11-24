@@ -32,15 +32,12 @@ html:has(.root.clear), body:has(.root.clear) { background: transparent; }
 
 .products { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: none; scrollbar-width: thin; padding: 3px; }
 .wrap.below .products { flex-direction: row; justify-content: safe center; overflow-x: auto; overflow-y: hidden; }
-.product { padding: 5px; border-radius: 8px; cursor: pointer; background: var(--card); border: 2px solid transparent;
-  flex: none; display: block; width: 100%; }
-.wrap.below .product { width: auto; height: 100%; aspect-ratio: 1; }
+.product { width: 48px; height: 48px; padding: 4px; border-radius: 50%; cursor: pointer; background: none; border: 2px solid transparent;
+  flex: none; display: block; }
 .product:hover { border-color: var(--line); }
 .product.on { border-color: var(--accent); }
 .product:disabled { opacity: .35; cursor: not-allowed; }
-.product img, .product video, .product canvas:not([hidden]) { display: block; width: 100%; aspect-ratio: 1; border-radius: 4px; pointer-events: none; }
-.product img { object-fit: contain; background: #fff; }
-.product video { object-fit: cover; background: #000; }
+.swatch { display: block; width: 100%; height: 100%; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(128, 128, 128, .45); }
 button:focus-visible { outline: 3px solid var(--accent, #2f7391); outline-offset: 1px; }
 .controls button:focus-visible { outline-color: #fff; outline-offset: -4px; }
 
@@ -59,6 +56,4 @@ button:focus-visible { outline: 3px solid var(--accent, #2f7391); outline-offset
 .notice button { min-height: 32px; padding: 0 14px; border-radius: 99px; border: 1px solid #fff; background: none; color: #fff; font: inherit; cursor: pointer; }
 .notice button:focus-visible { outline-color: #fff; }
 .notice.full button { min-height: 44px; }
-.noPhoto { display: grid; place-items: center; width: 100%; aspect-ratio: 1; overflow: hidden; font: 11px/1.2 system-ui, sans-serif; color: var(--fg);
-  text-align: center; overflow-wrap: anywhere; }
 .noscript { position: fixed; inset: 0; z-index: 2; margin: 0; display: grid; place-items: center; padding: 16px; text-align: center; background: #fff; color: #141414; }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GAP, Icon, layout, safely, Thumb, tryPlay } from "@/components/Player";
+import { GAP, Icon, layout, safely, tryPlay } from "@/components/Player";
 import type { Ad, GridPage } from "@/lib/ads";
 
 const SLOW = 6000; // after this, say that it's slow
@@ -313,9 +313,9 @@ export default function GridPlayer({ ad, pages, sound: startWithSound, onFail }:
         <div className="products" role="group" aria-label="Choose a product"
           style={below ? { height: strip, width: "100%" } : { width: side, maxHeight: h || undefined }}>
           {ad.items.map((it, i) => (
-            <button key={it.video} type="button" aria-pressed={i === active} aria-label={it.label} className={`product ${i === active ? "on" : ""}`}
+            <button key={it.video} type="button" aria-pressed={i === active} aria-label={it.label} className={`product ${i === active ? "on" : ""}`} title={it.label}
               onClick={() => select(i)}>
-              <Thumb photo={it.photo} src={null} middle={0} label={it.label} round={round} main={() => null} />
+              <span className="swatch" style={{ backgroundColor: it.color }} />
             </button>
           ))}
         </div>

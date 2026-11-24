@@ -1,6 +1,7 @@
 // Ads are read from the CDN only (the custom domain on the bucket). CDN_URL/ads/<id>/manifest.json lists the videos.
 
-export type AdItem = { label: string; video: string; photo: string | null };
+/** color: #rrggbb of the product in the switcher. */
+export type AdItem = { label: string; video: string; color: string };
 /** One video holding several products in a grid. items: which of the ad's items, left to right, top to bottom. */
 export type GridPage = { video: string; cols: number; rows: number; tileW: number; tileH: number; pad: number; items: number[] };
 export type Ad = { width: number; height: number; fps: number; frames: number; items: AdItem[]; grid: { full: GridPage[]; phone: GridPage[] } | null };
@@ -9,6 +10,8 @@ const ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 // Only plain files inside the ad's own folder: no "..", no absolute or other-site links.
 const FILE = /^(?:[A-Za-z0-9_-]+\/){0,3}[A-Za-z0-9_-]+\.([a-z0-9]{3,4})$/;
 const MAX_ITEMS = 24;
+// For products whose color isn't known (yet).
+const GREYS = ["#4a4a4a", "#8c8c8c", "#bdbdbd", "#6b6b6b", "#a3a3a3", "#d4d4d4"];
 
 /** CDN_URL as an origin, e.g. https://cdn.example.com. https only (http just for tests on this computer). */
 export function cdnOrigin(): string {
@@ -58,12 +61,12 @@ export function parseAd(m: unknown, folder: string): Ad | null {
   for (const it of raw.items as Record<string, unknown>[]) {
     // Only the original and the final videos; raw remakes are in the folder too (show: false).
     if (typeof it !== "object" || it === null || it.show === false) continue;
-    const pictures = ["png", "jpg", "jpeg", "webp"];
-    const video = file(it.video, ["mp4"]), photo = file(it.photo, pictures) ?? file(it.still, pictures);
+    const video = file(it.video, ["mp4"]);
+    const color = typeof it.color === "string" && /^#[0-9a-f]{6}$/i.test(it.color) ? it.color : GREYS[items.length % GREYS.length];
     if (!video || items.some((x) => x.video === folder + video)) continue;
     const label = typeof it.label === "string" ? it.label.trim().slice(0, 120) : "";
     items.push({ label: label || (it.kind === "original" || !items.length ? "Original" : `Variant ${items.length}`),
-      video: folder + video, photo: photo && folder + photo });
+      video: folder + video, color });
     ids.push(typeof it.id === "string" ? it.id : "");
     if (items.length === MAX_ITEMS) break;
   }
